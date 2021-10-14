@@ -1,3 +1,6 @@
+const API_KEY = 'AIzaSyA_bG8spMRcutwfSysl27z4hFHMfqD0yXQ';
+const CLIENT_ID = '443700420763-ljvbqrjpgpdit7br60thgrqc95b7k8s1.apps.googleusercontent.com';
+
 const gloAcademyList = document.querySelector('.glo-academy-list');
 
 const createCard = (dataVideo) => {
