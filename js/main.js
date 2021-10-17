@@ -1,6 +1,7 @@
 const API_KEY = "AIzaSyA_bG8spMRcutwfSysl27z4hFHMfqD0yXQ";
 const CLIENT_ID =
   "443700420763-ljvbqrjpgpdit7br60thgrqc95b7k8s1.apps.googleusercontent.com";
+const MY_CHANNEL = "UCREqTwuLE3-mIj4SjjYDeWw";
 
 const nbsplvList = document.querySelector(".nbsplv-list");
 const trendingList = document.querySelector(".trending-list");
@@ -40,7 +41,6 @@ const createCard = (dataVideo) => {
         <span class="video-channel">${channelTitle}</span>
     </div>
   `;
-
   return card;
 };
 
@@ -50,6 +50,71 @@ const createList = (wrapper, listVideo) => {
     const card = createCard(item);
     wrapper.append(card);
   });
+};
+
+const changePlaylistItem = (e) => {
+  let target = e.target;
+  if (e.target.classList.contains("update-btn")) {
+    updatePlaylistItem(target);
+  }
+  if (e.target.classList.contains("delete-playlist")) {
+    deletePlaylistItem(target);
+  }
+};
+
+const updatePlaylistName = (newTitle, playlistId) => {
+  gapi.client.youtube.playlists
+    .update({
+      part: "snippet",
+      resource: {
+        snippet: {
+          title: newTitle,
+          channelId: MY_CHANNEL,
+        },
+        id: playlistId,
+      },
+    })
+    .execute((response) => {
+      console.log(response);
+    });
+};
+
+const deletePlaylist = (playlistId) => {
+  gapi.client.youtube.playlists
+    .delete({
+      id: playlistId,
+    })
+    .execute((response) => {
+      console.log(response);
+    });
+};
+
+const updatePlaylistItem = (target) => {
+  let inputValue = target.parentNode.children[0].value;
+  let playlistId = target.parentNode.id;
+  updatePlaylistName(inputValue, playlistId);
+};
+
+const deletePlaylistItem = (target) => {
+  let playlistId = target.parentNode.id;
+  deletePlaylist(playlistId);
+  target.parentNode.remove();
+};
+
+const createPlaylistItem = (dataPlaylist) => {
+  const playlistTitle = dataPlaylist.snippet.title;
+  const playlistId = dataPlaylist.id;
+
+  const playlist = document.createElement("div");
+  playlist.classList.add("playlist");
+  playlist.id = playlistId;
+  playlist.innerHTML = `
+    <input type="text" class="playlist-title" value="${playlistTitle}"/>
+    <button class="change-name-btn update-btn">Update</button>
+    <button class="change-name-btn delete-playlist">Delete</button>
+  `;
+  playlist.addEventListener("click", changePlaylistItem);
+  return playlist;
 };
 
 const requestSearch = (searchText, callback, maxResults = 12) => {
@@ -82,6 +147,8 @@ formSearch.addEventListener("submit", (e) => {
 
 const authBtn = document.querySelector(".auth-btn");
 const userAvatar = document.querySelector(".user-avatar");
+const playlistBtn = document.querySelector(".playlist-btn");
+const playlistsContainer = document.querySelector(".playlists-wrapper");
 
 const handleSuccessAuth = (data) => {
   authBtn.classList.add("hide");
@@ -116,12 +183,15 @@ const updateStatusAuth = (data) => {
   }
 };
 
+let SCOPES = "https://www.googleapis.com/auth/youtube.force-ssl";
+
 var GoogleAuth; // Google Auth object.
 function initClient() {
   gapi.client
     .init({
+      apiKey: API_KEY,
       clientId: CLIENT_ID,
-      scope: "https://www.googleapis.com/auth/youtube.readonly",
+      scope: SCOPES,
       discoveryDocs: [
         "https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest",
       ],
@@ -130,23 +200,27 @@ function initClient() {
       updateStatusAuth(gapi.auth2.getAuthInstance());
       authBtn.addEventListener("click", handleAuth);
       userAvatar.addEventListener("click", handleSignOut);
-      console.log(gapi.client.youtube.comments)
     })
     .then(loadScreen);
 }
 
 gapi.load("client:auth2", initClient);
 
-const insertComment = (videoId, callback, text) => {
-  gapi.client.youtube.commentThreads.list({
-    part: 'snippet, id',
-    videoId,
-  }).execute((response) => {
-    
-  });
-  // gapi.client.youtube.commentThreads.snippet.videoId = videoId;
-  console.log(gapi.client.youtube.commentThreads.list);
-}
+const createPlaylist = (channelId, playlistName, callback) => {
+  gapi.client.youtube.playlists
+    .insert({
+      part: "snippet",
+      resource: {
+        snippet: {
+          channelId,
+          title: playlistName,
+        },
+      },
+    })
+    .execute((response) => {
+      callback(response);
+    });
+};
 
 const getChannel = () => {
   gapi.client.youtube.channels
@@ -198,18 +272,23 @@ const requestMusic = (callback, maxResults = 6) => {
     });
 };
 
+const playlistInput = document.querySelector(".playlist-input");
+
 const loadScreen = () => {
-  gapi.client.setApiKey(API_KEY);
-  requestVideos("UCQPeGbxmEqxNWidQgCdsJrQ", (data) => {
-    createList(nbsplvList, data);
+  // requestVideos("UCQPeGbxmEqxNWidQgCdsJrQ", (data) => {
+  //   createList(nbsplvList, data);
+  // });
+  playlistBtn.addEventListener("click", () => {
+    createPlaylist("UCREqTwuLE3-mIj4SjjYDeWw", playlistInput.value, (data) => {
+      playlistsContainer.append(createPlaylistItem(data));
+      playlistInput.value = "";
+    });
   });
-  insertComment("1pHZg5Yb7qw", (data) => {
-    document.appendChild(data);
-  })
-  requestTrending((data) => {
-    createList(trendingList, data);
-  });
-  requestMusic((data) => {
-    createList(musicList, data);
-  });
+
+  // requestTrending((data) => {
+  //   createList(trendingList, data);
+  // });
+  // requestMusic((data) => {
+  //   createList(musicList, data);
+  // });
 };
